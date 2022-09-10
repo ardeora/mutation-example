@@ -3,259 +3,165 @@ import { FaSolidBell } from 'solid-icons/fa'
 import { HiOutlineSearch } from 'solid-icons/hi'
 import { HiOutlineAdjustments } from 'solid-icons/hi'
 import { FaSolidPlus } from 'solid-icons/fa'
-import { HiSolidCheck } from 'solid-icons/hi'
+import { HiOutlineArrowSmLeft } from 'solid-icons/hi'
+import { HiOutlineShoppingBag } from 'solid-icons/hi'
 import { getTasks, createTask, TaskProps, updateTask } from './api';
 import { RiSystemLoader4Fill } from 'solid-icons/ri';
-import { createMutation, createQuery, useQueryClient } from '../../solid-query/src'
+import { createMutation, createInfiniteQuery, useIsMutating, createQuery, useQueryClient, useIsFetching } from '../../solid-query/src'
 import toast from 'solid-toast';
 import autoAnimate from '@formkit/auto-animate';
-import { createMotion } from "@motionone/solid";
-// @ts-ignore
-import { Key } from './Key';
+import { SiNike } from 'solid-icons/si'
+import { Portal } from 'solid-js/web';
+import { createVisibilityObserver } from "@solid-primitives/intersection-observer";
 
-const Header: Component = () => {
-  return (
-    <>
-      <div class='text-gray-300 flex items-center gap-3 mb-4'>
-        <h1 class='font-bold text-2xl' >Hello Aryan</h1>
-        <h1 class='font-semibold text-2xl' >👋</h1>
-        <div class="flex-1" ></div>
-        <div class="relative">
-          <div class="bg-slate-300 translate-x-3.5 h-2 w-2 absolute rounded-full border-4 border-red-500" ></div>
-          <FaSolidBell size={22}/>
-        </div>
-      </div>
-      <div class="bg-primary-lightGray gap-4 mb-4 rounded-md text-gray-400 py-3 px-4 flex items-center" >
-        <div>
-          <HiOutlineSearch size={20} />
-        </div>
-        <div class="text-sm flex-1">Search tasks or projects</div>
-        <div class="rotate-90 opacity-70">
-          <HiOutlineAdjustments size={20} />
-        </div>
-      </div>
-    </>
-  )
+const URL = 'https://infinite-query-server.vercel.app/api/products'
+
+interface ProductDetail {
+  name: string;
+  description: string;
+  image: string;
+  price: number;
 }
 
-const AddTaskButton: Component = () => {
-
-  const [showModal, setShowModal] = createSignal(false);
-  const queryClient = useQueryClient();
-
-  const mutation = createMutation(createTask, {
-    onMutate: async (task) => {
-      await queryClient.cancelQueries(['todos'])
-
-      const previousTasks = queryClient.getQueryData<TaskProps[]>(['todos']);
-
-      if (previousTasks) {
-        queryClient.setQueryData(['todos'], [task, ...previousTasks,])
-      } else {
-        queryClient.setQueryData(['todos'], [task])
-      }
-
-      return { previousTasks: previousTasks || [] }
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries(['todos'])
-    },
-    onError: (error: { message: string; }, variables, context) => {
-      console.log(error)
-      setTimeout(() => {
-        toast.error(error.message, {
-          style: {
-            'background-color': '#2C3748',
-            'color': '#d1d5db',
-          },
-          className: 'border-2 border-gray-600',
-          duration: 4000,
-          iconTheme: {
-            primary: '#dc2626'
-          }
-        })
-      }, 500)
-      if (context) {
-        queryClient.setQueryData(['todos'], context.previousTasks)
-      }
-    }
-  });
-
-  const handleSubmit = (e: Event) => {
-    e.preventDefault();
-
-    const form = e.target as HTMLFormElement;
-    const formData = new FormData(form);
-
-    const title = (formData.get('title') || '') as string;
-    const description = (formData.get('description') || '') as string;
-
-    const previousTasks = queryClient.getQueryData<TaskProps[]>(['todos']);
-    const previousLength = previousTasks ? previousTasks.length : 0;
-
-    mutation.mutate({ title, description, complete: false, id: `${previousLength + 1}` });
-    form.reset();
-    setShowModal(false);
-  }
-
-  createEffect(() => {
-    if (showModal()) {
-      document.getElementById('title')?.focus();
-    }
-  })
-
-  return (
-    <>
-      <div class="mt-4 flex justify-end" >
-        <button 
-          onClick={() => setShowModal(true)} 
-          class="text-gray-100 flex items-center justify-center bg-blue-600 hover:bg-blue-600/80 rounded-full h-14 w-14 font-bold">
-          <FaSolidPlus size={24} />
-        </button>
-      </div>
-      <Show when={showModal()}>
-        <div class="bg-gray-900/80 flex items-center justify-center backdrop-blur-sm absolute rounded-lg w-full h-full left-0 top-0" >
-          <div class='bg-primary-lightGray flex flex-col text-gray-300/80 h-[300px] w-[88%] rounded-md p-4'>
-            <div class="flex">
-              <div class='font-semibold flex-1 text-lg'>Add New Task</div>
-              <button onClick={() => setShowModal(false)} class='font-semibold rotate-45 hover:text-gray-300/80'>
-                <FaSolidPlus />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} class='flex-1 pt-4 flex flex-col' >
-              <div>
-                <label for="title" class='text-gray-300' >Title</label>
-                <input id="title" name="title" class='focus:outline-none focus:border-sky-500 focus:ring-0 focus:ring-sky-500 w-full border-2 border-gray-600 rounded-md mt-1.5 p-1.5 mb-4 bg-gray-700' type='text' />
-                <label for="description" class='text-gray-300' >Description</label>
-                <input id="description" name="description" class='focus:outline-none focus:border-sky-500 focus:ring-0 focus:ring-sky-500 w-full border-2 border-gray-600 rounded-md mt-1.5 p-1.5 bg-gray-700' type='text' />
-              </div>
-              <div class='flex-1 flex items-end justify-end' >
-                <input class="px-5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded font-semibold bg-blue-600 text-white" type="submit" value="Create" />
-              </div>
-            </form>
-          </div>
-        </div>
-      </Show>
-    </>
-  )
-}
-
-const TaskList: Component = () => {
-
-  const todosQuery = createQuery<TaskProps[]>(
-    () => ['todos'],
-    () => getTasks()
-  )
-
-  return (
-    <>
-      <div class="flex items-center mb-4">
-        <h1 class="text-gray-300 flex-1 text-2xl font-medium" >Recent Tasks</h1>
-        <div class="text-gray-300/80 text-sm font-semibold">
-          <Show when={todosQuery.isFetching}>
-            <div class="flex items-center gap-1">
-              <RiSystemLoader4Fill class="h-5 w-5 text-gray-500 animate-spin" />
-              <div>Background Sync</div>
-            </div>
-          </Show>
-        </div>
-      </div>    
-      <Show when={todosQuery.data}>
-        <div ref={el => onMount(() => {
-          autoAnimate(el)
-        })} class="flex flex-col gap-4">
-          
-          <Key each={todosQuery.data!} by={(todos: TaskProps) => todos.id}>
-            {(task: Accessor<TaskProps>) => (
-              <Task {...task()}  />
-            )}
-          </Key>
-          
-        </div>
-      </Show>
-    </>
-  )
-}
-
-const Spinner: Component = () => {
-  return (
-    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-      <RiSystemLoader4Fill class="h-10 w-10 text-gray-500 animate-spin" />
-    </div>
-  )
+interface ProductPayload {
+  nextId: number | null;
+  previousId: number | null;
+  products: ProductDetail[]
 }
 
 const App: Component = () => {
-  return (
-    <div class="bg-primary-background h-screen flex items-center justify-center">
-      <div id="main" class="h-[616px] w-[428px] flex flex-col relative bg-primary-foreground rounded-lg border-2 border-gray-700 p-6">
 
-        <Header />
-
-        <div class="flex-1 overflow-scroll relative">
-          <Suspense fallback={<Spinner />}>
-            <TaskList />
-          </Suspense>
-        </div>
-        
-        <AddTaskButton />
-        
-        
-      </div>
-      
+  const productsQuery = createInfiniteQuery<ProductPayload>(
+    () => ['products'],
+    async ({ pageParam = 0 }) => {
+      return await fetch(`${URL}/${pageParam}`).then(d => d.json())
+    }, 
+    {
+      getPreviousPageParam: (firstPage) => firstPage.previousId ?? undefined,
+      getNextPageParam: (lastPage) => lastPage.nextId ?? undefined,
+    }
+  )
 
 
-    </div>
-  );
-};
+  let el: HTMLDivElement | undefined;
+  const visible = createVisibilityObserver({ threshold: 1 })(() => el);
 
-const Task: Component<TaskProps> = (props) => {
-
-  const queryClient = useQueryClient();
-
-  const mutation = createMutation(updateTask, {
-    onMutate: async (task) => {
-      await queryClient.cancelQueries(['todos'])
-
-      const previousTasks: TaskProps[] = structuredClone(queryClient.getQueryData<TaskProps[]>(['todos']));
-
-      if (previousTasks) {
-        const index = previousTasks.findIndex(t => t.id === task.id);
-        
-        previousTasks[index] = task;
-        queryClient.setQueryData(['todos'], [...previousTasks]);
-      } 
-
-      return { previousTasks }
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries(['todos'])
+  createEffect(() => {
+    if(visible() && productsQuery.hasNextPage) {
+      productsQuery.fetchNextPage()
     }
   })
 
-  const handleComplete = () => {
-    mutation.mutate({
-      ...props,
-      complete: !props.complete
-    })
-  }
-
   return (
-    <div class="bg-primary-lightGray flex gap-5 flex-1 items-center rounded-lg px-4 py-5">
-      <div class='flex-1 flex flex-col gap-1' >
-        <div class="font-semibold text-gray-300" >{props.title}</div>
-        <div class="text-gray-300/80 text-sm">
-          {props.description}
+    <>
+      <div class="bg-white h-screen flex flex-col gap-4 items-center justify-center">
+        <div class="aspect-square  flex justify-center items-center p-20 relative rounded-lg">
+          <div class="absolute inset-0 rounded-lg overflow-hidden">
+            <img src="/img/gradient.png" class="w-full h-full opacity-40 border border-red-200 absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2" ></img>
+          </div>
+
+          <div id="main" class="h-[616px] w-[386px] relative bg-gray-50 rounded-lg border-2 border-[#FF660070] overflow-clip shadow-md shadow-orange-400/30">
+            <div class='h-full overflow-scroll' >
+              <Header />
+              <div ref={el => onMount(() => autoAnimate(el))}  class="grid min-h-full grid-cols-2 px-4 gap-4 mt-4">
+                <div id="col-1"></div>
+                <div id="col-2"></div>
+                <Show when={productsQuery.data}>
+                  <For each={productsQuery.data!.pages}>
+                    {
+                      (pages) => (
+                          <For each={pages.products}>
+                            {
+                              (product, idx) => idx() % 2 == 0 ? (
+                                <Portal mount={document.getElementById('col-1')!}>
+                                  <ProductCard {...product} />
+                                </Portal>
+                              ) : (
+                                <Portal mount={document.getElementById('col-2')!}>
+                                  <ProductCard {...product} />
+                                </Portal>
+                              )
+                            }
+                          </For>
+                      )
+                    }
+                  </For>
+                </Show>
+              </div>
+              <div
+                ref={el}
+                class=" text-[#FF6600] h-32 flex items-center justify-center"
+              >{productsQuery.hasNextPage ? 'Loading...' : 'End of List'}</div>
+            </div>
+            
+          </div>
         </div>
       </div>
-      <div>
-        <button onClick={handleComplete} class={`h-10 w-10 border-[6px] ${props.complete ? 'bg-[#41CA8Fd0]' : ''} border-primary-background rounded-full flex items-center justify-center`} >
-          {props.complete ? <HiSolidCheck class=" stroke-2 " size={16} color="white"/> : null}
-        </button>
-      </div>
-    </div>
+    </>
   );
 };
+
+const Header: Component = () => {
+
+  const isFetching = useIsFetching()
+
+  return (
+    <>
+      <div class='text-gray-300 z-10 bg-gray-50/80 backdrop-blur-md flex p-4 sticky top-0 border-b-2 pb-4 items-center gap-3'>
+        <div class="h-9 w-9 flex items-center justify-center border-2 border-gray-200 rounded-lg ">
+          <HiOutlineArrowSmLeft size={24} class="text-gray-500" />
+        </div>
+        <div class="flex-1 flex justify-center">
+          <SiNike size={36} color="#FF6600"/>
+        </div>
+        <div class="h-9 w-9 flex items-center justify-center border-2 border-gray-200 rounded-lg ">
+          <HiOutlineShoppingBag size={20} class="text-gray-500" />
+        </div>
+        
+        <Show when={isFetching()} >
+          <div class="absolute left-0 top-full w-full h-12 backdrop-blur-md bg-gradient-to-b from-gray-50 to-transparent" >
+          </div>
+          <div class="absolute -translate-y-full rounded-full left-0 top-full w-full h-1.5 bg-gradient-to-r from-transparent via-[#FF6600] to-transparent -translate-x-full animate-[shimmer_1.25s_infinite]" >
+          </div>
+        </Show>
+        
+      </div>
+      <div class="px-4 pt-3 flex gap-3 mb-3 ">
+        <div class="flex-1 border-2 gap-4 rounded-md text-gray-400 py-2.5 px-2.5 flex items-center" >
+          <div>
+            <HiOutlineSearch size={20} />
+          </div>
+          <div class="text-sm flex-1">Search for product name</div>
+        </div>
+        <div class="rotate-90 h-11 w-11 flex items-center justify-center border-2 rounded-md">
+          <HiOutlineAdjustments size={22} class="text-gray-500" />
+        </div>
+      </div>
+      <div class="px-4">
+        <h1 class="font-bold text-2xl" >New Arrivals</h1>
+        <p class="text-sm text-[#FF6600] font-medium" >Nike Original 2022</p>
+      </div>
+    </>
+  )
+}
+
+const ProductCard: Component<ProductDetail> = (props) => {
+  return (
+    <div class='bg-[#f6f6f6] mb-4 rounded-md p-1 border shadow-sm'>
+      <div class="rounded aspect-square relative overflow-hidden" >
+        <img class="animate-enter" src={props.image + '.jpg'} onError={(e) => e.currentTarget.src = props.image + '.webp'} ></img>
+      </div>
+      <div class="pb-2">
+        <p class='px-1 mb-1 text-sm text-[#FF6600] leading-tight' >{props.description}</p>
+        <p class="px-1 text-lg font-semibold leading-tight" >{props.name}</p>
+
+        <div class='px-1 mt-2'>
+          <p class="font-medium">${props.price}</p>
+        </div>
+      </div>
+      
+    </div>
+  )
+}
 
 export default App;

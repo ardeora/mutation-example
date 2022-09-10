@@ -36,7 +36,7 @@ export const getTasks = (): Promise<TaskProps[]> => {
 }
 
 export const createTask = (task: TaskProps): Promise<TaskProps> => {
-  const timeoutTime = task.title.includes('Error') ? 2250 : 0
+  const timeoutTime = task.title.includes('Error') ? 2250 : 2500
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if(task.title.includes('Error')) {
@@ -55,6 +55,6 @@ export const updateTask = (task: TaskProps): Promise<TaskProps> => {
       const index = database.findIndex(t => t.id === task.id)
       database[index] = task
       resolve(task)
-    } , 250)
+    } , 1250)
   })
 }
